@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en" style="scroll-behavior: smooth;"> 
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UNIQ Shipping Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom font and basic setup */
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* Light gray background */
+        }
+        /* Custom scrollbar for the textarea */
+        textarea::-webkit-scrollbar {
+            width: 8px;
+        }
+        textarea::-webkit-scrollbar-thumb {
+            background-color: #cbd5e1;
+            border-radius: 10px;
+        }
+        /* Custom Spinner Animation CSS */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin-fast {
+            animation: spin 0.7s linear infinite;
+        }
+    </style>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'brand-blue': '#1e40af',
+                        'brand-hover': '#1d4ed8',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen flex flex-col items-center p-4">
+
+    <div class="w-full max-w-4xl bg-white shadow-xl rounded-xl p-8 my-8 transition-all duration-300">
+
+        <header class="text-center mb-8">
+            <div id="logo-section" class="text-4xl font-extrabold text-brand-blue mb-2">
+                <img style="max-width:250px;margin:0 auto" src="https://ifdalivestorage.blob.core.windows.net/user-uploads/profile/156900/8864390d-ff41-45d3-95b0-287e3ebbcd46/company_card_logo.jpg">
+            </div>
+            <p class="text-gray-500">Only for Parcels and Orders despatched by UNIQ. <b>Packages starting with DX.</b></p>
+        </header>
+
+        <div class="flex flex-col gap-4">
+            <label for="tracking-bills" class="text-sm font-medium text-gray-700">Enter Tracking Number(s) (one per line):</label>
+            
+            <textarea 
+                id="tracking-bills" 
+                name="bills"
+                rows="5" 
+                placeholder="DX5111001724" 
+                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-brand-blue focus:border-brand-blue transition duration-150 resize-none text-sm"
+            ></textarea>
+
+            <button 
+                id="track-button"
+                onclick="handleTracking()"
+                class="w-full bg-brand-blue text-white py-3 rounded-lg font-semibold hover:bg-brand-hover transition duration-200 shadow-md focus:outline-none focus:ring-4 focus:ring-brand-blue focus:ring-opacity-50"
+            >
+                Track Shipment
+            </button>
+        </div>
+
+        <div id="results-area" class="mt-8">
+            
+            <div id="loading-spinner" class="text-center p-4 hidden">
+                <div class="animate-spin-fast inline-block w-8 h-8 border-4 border-l-brand-blue border-gray-200 rounded-full"></div>
+                <p class="text-gray-500 mt-2 text-sm">Fetching tracking updates...</p>
+            </div>
+            
+            <div id="status-message" class="text-center text-gray-500 p-4 hidden"></div>
+            <div id="tracking-results" class="space-y-6">
+                </div>
+        </div>
+    </div>
+
+    <script>
+        const trackingInput = document.getElementById('tracking-bills');
+        const trackButton = document.getElementById('track-button');
+        const resultsArea = document.getElementById('tracking-results');
+        const statusMessage = document.getElementById('status-message');
+        const loadingSpinner = document.getElementById('loading-spinner'); // Get the new spinner element
+
+        /**
+         * Calls the local Python Flask API to get tracking data.
+         * The backend API URL must be the public/local address of your running Flask server.
+         * @param {string} trackingNumber - The single tracking number to look up.
+         * @returns {Promise<Object>} A promise that resolves with the tracking data or error.
+         */
+        async function fetchTrackingData(trackingNumber) {
+            // *** CRITICAL FIX APPLIED HERE: Using secure, proxied domain and correct Nginx path ***
+            const backendApiUrl = 'https://api.godata.digital/track';
+
+            const response = await fetch(backendApiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                // The body payload is correct: { tracking_number: "..." }
+                body: JSON.stringify({ tracking_number: trackingNumber }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok || data.error) {
+                // Throw an error if the HTTP status is not OK (e.g., 400, 500) or if the JSON body contains an 'error' key
+                throw new Error(data.error || `HTTP Error ${response.status}: Failed to fetch data.`);
+            }
+
+            return data;
+        }
+
+        /**
+         * Renders the structured tracking result data onto the page.
+         */
+        function renderTrackingResult(data) {
+            const resultDiv = document.createElement('div');
+            resultDiv.className = 'border border-gray-200 rounded-lg p-4 shadow-sm';
+            
+            // Title
+            const title = document.createElement('h4');
+            // The title should look like: 【DX5111001724】Detailed Information
+            title.className = 'text-lg font-bold text-gray-900 mb-3';
+            title.textContent = data.title;
+            resultDiv.appendChild(title);
+
+            // Table setup (using grid for responsiveness)
+            const table = document.createElement('div');
+            table.className = 'divide-y divide-gray-100';
+
+            // Header Row
+            const headerRow = document.createElement('div');
+            headerRow.className = 'grid grid-cols-12 font-semibold text-xs uppercase text-gray-600 py-2 border-b';
+            headerRow.innerHTML = `
+                <span class="col-span-3">${data.header[0] || 'Date/Time'}</span>
+                <span class="col-span-4">${data.header[1] || 'Area'}</span>
+                <span class="col-span-5">${data.header[2] || 'Details'}</span>
+            `;
+            table.appendChild(headerRow);
+
+            // Status Rows
+            if (data.statuses && data.statuses.length > 0) {
+                data.statuses.forEach(status => {
+                    const statusRow = document.createElement('div');
+                    statusRow.className = 'grid grid-cols-12 text-sm text-gray-800 py-3 hover:bg-gray-50 transition duration-100';
+                    statusRow.innerHTML = `
+                        <span class="col-span-3">${status.date_time}</span>
+                        <span class="col-span-4 font-medium">${status.area}</span>
+                        <span class="col-span-5">${status.details}</span>
+                    `;
+                    table.appendChild(statusRow);
+                });
+            } else {
+                 const emptyRow = document.createElement('div');
+                 emptyRow.className = 'text-center text-sm text-gray-500 py-4 italic';
+                 emptyRow.textContent = 'No status updates found or all records were filtered.';
+                 table.appendChild(emptyRow);
+            }
+
+            resultDiv.appendChild(table);
+            resultsArea.appendChild(resultDiv);
+        }
+
+        /**
+         * Main handler when the user clicks the track button.
+         * Processes all tracking numbers entered in the textarea.
+         */
+        async function handleTracking() {
+            const rawInput = trackingInput.value.trim();
+            // Split by newline, trim whitespace, and filter out empty lines
+            const trackingNumbers = rawInput.split('\n').map(n => n.trim()).filter(n => n.length > 0);
+
+            if (trackingNumbers.length === 0) {
+                statusMessage.textContent = 'Please enter at least one tracking number.';
+                statusMessage.classList.remove('hidden', 'text-red-600', 'text-orange-600', 'text-green-600');
+                statusMessage.classList.add('text-gray-500');
+                resultsArea.innerHTML = '';
+                return;
+            }
+
+            // --- START LOADING STATE ---
+            resultsArea.innerHTML = '';
+            statusMessage.classList.add('hidden'); // Hide status message during tracking
+            loadingSpinner.classList.remove('hidden'); // Show the loading spinner
+
+            // SMOOTH SCROLL: Scroll to the start of the results area
+            document.getElementById('results-area').scrollIntoView({ behavior: 'smooth', block: 'start' });
+            
+            trackButton.disabled = true;
+            trackButton.textContent = 'Tracking...';
+
+            let successfulTracks = 0;
+            let failedTracks = 0;
+
+            for (const number of trackingNumbers) {
+                try {
+                    const data = await fetchTrackingData(number);
+                    renderTrackingResult(data);
+                    successfulTracks++;
+                } catch (error) {
+                    failedTracks++;
+                    console.error(`Error processing ${number}:`, error);
+                    // Append specific error message for this number
+                    const errorDiv = document.createElement('div');
+                    errorDiv.className = 'text-sm text-red-600 border border-red-300 bg-red-50 p-3 rounded-lg mt-2';
+                    errorDiv.textContent = `Error tracking ${number}: ${error.message}`;
+                    resultsArea.appendChild(errorDiv);
+                }
+            }
+
+            // --- END LOADING STATE ---
+            loadingSpinner.classList.add('hidden'); // Hide the loading spinner
+            statusMessage.classList.remove('hidden', 'text-red-600', 'text-orange-600', 'text-green-600'); // Reset classes
+
+            // Final state update
+            if (failedTracks === 0) {
+                 statusMessage.textContent = `Successfully processed all ${successfulTracks} tracking number(s).`;
+                 statusMessage.classList.add('text-green-600');
+            } else if (successfulTracks > 0) {
+                 statusMessage.textContent = `Processed ${successfulTracks} successfully, but ${failedTracks} failed.`;
+                 statusMessage.classList.add('text-orange-600');
+            } else {
+                 statusMessage.textContent = `All ${failedTracks} tracking numbers failed. Check the errors below.`;
+                 statusMessage.classList.add('text-red-600');
+            }
+
+            trackButton.disabled = false;
+            trackButton.textContent = 'Track Shipment';
+        }
+    </script>
+</body>
+</html>
