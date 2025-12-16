@@ -311,3 +311,7 @@ When following this guide, find and replace these placeholders with your actual 
 | **Domain Name** | `api.godata.digital` | Your subdomain (e.g., `api.yourdomain.com`). |
 | **Target Website** | `example-shipping.com` | The URL your Python script needs to scrape. |
 | **Scraping Logic** | *(In python code)* | Your actual Selenium code to find elements and extract text. |
+
+---
+
+This code is Managed by <ahref="https://godata.digital">Godata.digital</a>
