@@ -314,4 +314,5 @@ When following this guide, find and replace these placeholders with your actual 
 
 ---
 
-This code is Managed by <ahref="https://godata.digital">Godata.digital</a>
+This code is Managed by <a href="https://godata.digital">Godata.digital</a>
+
