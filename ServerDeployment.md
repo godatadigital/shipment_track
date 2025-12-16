@@ -137,5 +137,3 @@ Enable Firewall (If not already enabled):Bashufw enable
      -H "Content-Type: application/json" \
      -d '{"tracking_number": "TEST12345"}'
 Expected Output:You should receive a JSON response with the tracking details.✏️ Variables You Must ChangeWhen following this guide, find and replace these placeholders with your actual details:VariableExample Value used in GuideWhat you should putYOUR_SERVER_IP74.208.146.50The actual public IP of your VPS.Domain Nameapi.godata.digitalYour subdomain (e.g., api.yourdomain.com).Target Websiteexample-shipping.comThe URL your Python script needs to scrape.Scraping Logic(In python code)Your actual Selenium code to find elements and extract text.
-
-This Guide is Managed by <a href="https://godata.digital">Godata.digital</a>
